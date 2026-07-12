@@ -97,10 +97,6 @@ This project is provided “as is”, without any express or implied warranties.
   </tr>
 </table>
 
-## Stargazers
-
-[![Star History Chart](https://api.star-history.com/svg?repos=NodePassProject/NodePassDash&type=Date)](https://star-history.com/#NodePassProject/NodePassDash&Date)
-
 ---
 
 © 2026 NodePassProject. All rights reserved.
