@@ -94,12 +94,11 @@ func (s *TrafficScheduler) Stop() {
 	log.Println("[流量调度器] 定时任务已停止")
 }
 
-// runAligned 在每个整点后延迟一小段时间执行聚合，减少与分钟写入尖峰的冲突
+// runAligned 在每个整点执行上一完整小时的聚合。
+// 整点后两分钟再校准一次，纳入可能延迟落库的最后一分钟数据。
 func (s *TrafficScheduler) runAligned() {
-	const delayAfterHour = 2 * time.Minute
-
 	now := time.Now()
-	nextRun := now.Truncate(time.Hour).Add(1 * time.Hour).Add(delayAfterHour)
+	nextRun := now.Truncate(time.Hour).Add(1 * time.Hour)
 	timer := time.NewTimer(time.Until(nextRun))
 	defer timer.Stop()
 
@@ -109,11 +108,27 @@ func (s *TrafficScheduler) runAligned() {
 			return
 		case <-timer.C:
 			s.executeAggregation()
+			s.scheduleReconciliation()
 
 			nextRun = nextRun.Add(1 * time.Hour)
 			timer.Reset(time.Until(nextRun))
 		}
 	}
+}
+
+func (s *TrafficScheduler) scheduleReconciliation() {
+	go func() {
+		timer := time.NewTimer(2 * time.Minute)
+		defer timer.Stop()
+
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-timer.C:
+			log.Println("[流量调度器] 开始执行整点流量校准...")
+			s.executeAggregation()
+		}
+	}()
 }
 
 // executeAggregation 执行数据聚合

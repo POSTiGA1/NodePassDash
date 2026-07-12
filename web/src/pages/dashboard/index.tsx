@@ -82,6 +82,7 @@ interface TrafficTrendData {
 // 常量定义 - 减少内存占用
 const MAX_TRAFFIC_DATA_POINTS = 50; // 从200减少到50，减少75%内存占用
 const MAX_OPERATION_LOGS = 20; // 从100减少到20，减少80%内存占用
+const TRAFFIC_REFRESH_INTERVAL_MS = 60_000;
 
 // 主控状态类型
 type EndpointStatus = "ONLINE" | "OFFLINE" | "FAIL";
@@ -488,6 +489,33 @@ export default function DashboardPage() {
     fetchEndpoints,
     fetchWeeklyStats,
   ]);
+
+  // Keep the three traffic panels in sync with the hourly backend summary.
+  // This refresh is silent so charts do not return to their loading state.
+  useEffect(() => {
+    let refreshing = false;
+
+    const refreshTraffic = async () => {
+      if (refreshing || !isMountedRef.current) return;
+      refreshing = true;
+      try {
+        await Promise.all([
+          fetchTrafficTrend(),
+          fetchTodayTraffic(),
+          fetchWeeklyStats(),
+        ]);
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    const timer = window.setInterval(
+      refreshTraffic,
+      TRAFFIC_REFRESH_INTERVAL_MS,
+    );
+
+    return () => window.clearInterval(timer);
+  }, [fetchTrafficTrend, fetchTodayTraffic, fetchWeeklyStats]);
 
   // 表格列定义
   const columns = [
